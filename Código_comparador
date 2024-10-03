@@ -1,0 +1,24 @@
+int valor = 0;
+
+void setup() {
+  pinMode(A5, INPUT);
+  Serial.begin(115200);
+}
+
+void loop() {
+  valor = analogRead(A5);
+  if(valor <= 50){
+    Serial.print("03");
+  }
+  if(valor > 50 and valor <= 180){
+    Serial.print("02");
+  }
+  if(valor > 180 and valor <= 300){
+    Serial.print("01");
+  }
+  if(valor > 300){
+    Serial.print("00");
+  }
+  Serial.println();
+  delay(30);
+}
