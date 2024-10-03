@@ -1,0 +1,78 @@
+#include <Arduino.h>
+
+#define turnOn(port, pin) (port |= (1 << pin))
+#define turnOff(port, pin) (port &= ~(1 << pin))
+
+#define n1 PORT4
+#define n2 PORT5
+#define n3 PORT6
+
+template<uint8_t bits>
+constexpr void encoding() {
+  if constexpr (bits == 0b00) {
+    turnOff(PORTD, n1);
+    turnOff(PORTD, n2);
+    turnOff(PORTD, n3);
+  } else if constexpr (bits == 0b01) {
+    turnOn(PORTD, n1);
+    turnOff(PORTD, n2);
+    turnOff(PORTD, n3);
+  } else if constexpr (bits == 0b10) {
+    turnOn(PORTD, n1);
+    turnOn(PORTD, n2);
+    turnOff(PORTD, n3);
+  } else if constexpr (bits == 0b11) {
+    turnOn(PORTD, n1);
+    turnOn(PORTD, n2);
+    turnOn(PORTD, n3);
+  }
+}
+
+int inputArray[8] = {
+  0, 0, 0, 1, 1, 0, 1, 1,  // Example values
+};
+
+volatile int currentIndex = 0; // Index to track the current position in inputArray
+
+void setup() {
+  // Set pins as output
+  DDRD |= (1 << n1) | (1 << n2) | (1 << n3);
+
+  // Set up Timer1 for CTC mode
+  TCCR1A = 0; // Clear Timer1 control registers
+  TCCR1B = 0;
+  TCCR1B |= (1 << WGM12); // CTC mode
+  TCCR1B |= (1 << CS11); // Prescaler 8 (adjust for desired frequency)
+
+  // Set compare match register for a specific frequency
+  OCR1A = 0; // Adjust this value to set the frequency (1kHz with prescaler of 8)
+
+  TIMSK1 |= (1 << OCIE1A); // Enable Timer1 compare interrupt
+  sei(); // Enable global interrupts
+}
+
+void loop() {
+  // Main loop can remain empty or handle other tasks
+}
+
+// Timer1 interrupt service routine
+ISR(TIMER1_COMPA_vect) {
+  // Iterate through the array in groups of 2 bits
+  if (currentIndex < 8) {
+    uint8_t bits = ((inputArray[currentIndex] << 1) | inputArray[currentIndex + 1]);
+    currentIndex += 2; // Move to the next pair of bits
+
+    // Call compile-time encoding function with the evaluated bits
+    switch(bits) {
+      case 0b00: encoding<0b00>(); break;
+      case 0b01: encoding<0b01>(); break;
+      case 0b10: encoding<0b10>(); break;
+      case 0b11: encoding<0b11>(); break;
+    }
+
+    // Reset index if we reach the end of the array
+    if (currentIndex >= 8) {
+      currentIndex = 0; // Loop back to start
+    }
+  }
+}
